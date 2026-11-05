@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tangkap Kantuk</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1a1233;--panel:#2a1d52;--ink:#f3eeff;--dim:#b3a6e0;--good:#8df0c8;--bad:#ff7a9c;--gold:#ffd36b;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:"Fredoka",system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:420px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:center;gap:10px}
+.top span{font-size:15px;color:var(--dim);white-space:nowrap}
+.meter{flex:1;height:18px;background:var(--panel);border-radius:10px;overflow:hidden}
+.meter i{display:block;height:100%;width:20%;background:linear-gradient(90deg,#6a7bff,var(--good));transition:width .15s}
+canvas{width:100%;aspect-ratio:2/3;border-radius:20px;background:linear-gradient(#241a4a,#3a2468 70%,#51307a);touch-action:none;display:block}
+.tip{margin:0;text-align:center;color:var(--dim);font-size:14px}
+.ov{position:fixed;inset:0;background:#0d0820cc;display:flex;align-items:center;justify-content:center;padding:20px;z-index:5}
+.ov[hidden]{display:none}
+.card{background:var(--panel);border-radius:22px;padding:26px 22px;max-width:380px;width:100%;text-align:center}
+.card h1{margin:0 0 8px;font-size:32px;line-height:1.1}
+.card p{margin:0 0 18px;color:var(--dim);font-size:17px;line-height:1.4}
+.card .row{display:flex;justify-content:center;gap:18px;font-size:15px;margin-bottom:18px;color:var(--ink)}
+button{border:0;border-radius:14px;padding:14px 20px;width:100%;background:var(--gold);color:#3a2800;font:600 20px "Fredoka",system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 0 #b88e20}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #b88e20}
+button:focus-visible{outline:3px solid var(--good);outline-offset:3px}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="top"><span>Kantuk</span><div class="meter"><i id="m"></i></div><span id="tm">0 d</span></div>
+  <canvas id="c" width="360" height="540" aria-label="Area permainan"></canvas>
+  <p class="tip">Geser kasur dengan jari, mouse, atau tombol panah.</p>
+</main>
+
+<div class="ov" id="ov">
+  <div class="card">
+    <h1 id="t">Tangkap Kantuk</h1>
+    <p id="p">Tangkap hal yang bikin cepat tidur sampai meter kantuk penuh. Hindari yang bikin melek.</p>
+    <div class="row"><span>🌙 🐑 🥛 📖 naik</span><span>☕ 📱 🎮 💡 turun</span></div>
+    <button id="s">Mulai</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var cv=document.getElementById("c"),x=cv.getContext("2d"),W=360,H=540;
+  var GOOD=["🌙","🐑","🥛","📖"],BAD=["☕","📱","🎮","💡"];
+  var $=function(i){return document.getElementById(i)};
+  var g,keys={},raf;
+
+  function reset(){g={bx:W/2,sleep:20,t:0,items:[],spawn:0.5,run:true,last:performance.now(),shake:0}}
+
+  function pos(e){
+    var r=cv.getBoundingClientRect();
+    g.bx=Math.max(34,Math.min(W-34,(e.clientX-r.left)/r.width*W));
+  }
+  cv.addEventListener("pointermove",function(e){if(g&&g.run)pos(e)});
+  cv.addEventListener("pointerdown",function(e){if(g&&g.run)pos(e)});
+  addEventListener("keydown",function(e){keys[e.key]=true});
+  addEventListener("keyup",function(e){keys[e.key]=false});
+
+  function step(now){
+    if(!g.run)return;
+    var dt=Math.min(0.05,(now-g.last)/1000);g.last=now;g.t+=dt;
+    if(keys.ArrowLeft||keys.a)g.bx=Math.max(34,g.bx-340*dt);
+    if(keys.ArrowRight||keys.d)g.bx=Math.min(W-34,g.bx+340*dt);
+    var lvl=1+g.t/25;
+    g.spawn-=dt;
+    if(g.spawn<=0){
+      var bad=Math.random()<Math.min(0.5,0.3+g.t/200);
+      var s=bad?BAD:GOOD;
+      g.items.push({x:30+Math.random()*(W-60),y:-20,v:(110+Math.random()*60)*lvl,bad:bad,e:s[Math.floor(Math.random()*s.length)],r:Math.random()*6});
+      g.spawn=Math.max(0.35,0.85/lvl);
+    }
+    for(var i=g.items.length-1;i>=0;i--){
+      var it=g.items[i];it.y+=it.v*dt;it.r+=dt*2;
+      if(it.y>H-95&&it.y<H-40&&Math.abs(it.x-g.bx)<44){
+        g.sleep+=it.bad?-15:8;
+        if(it.bad)g.shake=0.3;
+        g.items.splice(i,1);
+      }else if(it.y>H+20)g.items.splice(i,1);
+    }
+    g.sleep=Math.min(100,g.sleep);
+    g.shake=Math.max(0,g.shake-dt);
+    $("m").style.width=Math.max(0,g.sleep)+"%";
+    $("tm").textContent=Math.floor(g.t)+" d";
+    draw();
+    if(g.sleep>=100)return end(true);
+    if(g.sleep<=0)return end(false);
+    raf=requestAnimationFrame(step);
+  }
+
+  function draw(){
+    x.clearRect(0,0,W,H);
+    x.save();
+    if(g.shake>0)x.translate((Math.random()-.5)*8,0);
+    x.fillStyle="#ffffff55";
+    for(var i=0;i<24;i++){x.fillRect((i*97)%W,(i*53)%(H-120),2,2)}
+    x.textAlign="center";x.textBaseline="middle";
+    g.items.forEach(function(it){
+      x.font="34px serif";
+      x.save();x.translate(it.x,it.y);x.rotate(Math.sin(it.r)*.25);x.fillText(it.e,0,0);x.restore();
+    });
+    x.font="64px serif";
+    x.fillText(g.sleep>70?"😴":"🛏️",g.bx,H-62);
+    x.restore();
+  }
+
+  function end(win){
+    g.run=false;
+    $("t").textContent=win?"Zzz… pulas!":"Matamu melek terus";
+    $("p").textContent=win?"Kantukmu penuh dalam "+Math.floor(g.t)+" detik. Tidur cepat memang paling enak.":"Terlalu banyak pengganggu. Coba tangkap lebih banyak 🌙 🐑 🥛 📖 dan jauhi layar.";
+    $("s").textContent="Main lagi";
+    $("ov").hidden=false;
+  }
+
+  $("s").addEventListener("click",function(){
+    $("ov").hidden=true;reset();
+    cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(function(n){g.last=n;step(n)});
+  });
+  reset();draw();g.run=false;
+})();
+</script>
+</body>
+</html>
