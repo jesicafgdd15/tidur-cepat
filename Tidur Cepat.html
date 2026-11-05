@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tidur Cepat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#12152b;--panel:#1c2040;--ink:#eef0ff;--dim:#9aa1d6;--lamp:#ffb84d;--rose:#ff6b8b;--mint:#7be0c3;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:"Baloo 2",system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;padding:16px;display:flex;flex-direction:column;gap:12px}
+header{display:flex;justify-content:space-between;align-items:flex-end}
+.clock{font-size:56px;font-weight:800;line-height:1;color:var(--lamp);font-variant-numeric:tabular-nums}
+.clock small{display:block;font-size:14px;font-weight:500;color:var(--dim);margin-bottom:2px}
+.score{text-align:right;color:var(--dim);font-size:15px}
+.score b{display:block;font-size:28px;color:var(--mint)}
+.bar{height:10px;background:var(--panel);border-radius:6px;overflow:hidden}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--lamp),var(--rose));transition:width .15s linear}
+.stage{position:relative;height:300px;background:radial-gradient(circle at 80% 18%,#2b315f 0,var(--panel) 55%);border-radius:18px;overflow:hidden;touch-action:manipulation}
+.moon{position:absolute;right:28px;top:18px;width:46px;height:46px;border-radius:50%;background:#f4f1d6;box-shadow:-12px 0 0 0 var(--panel) inset,0 0 30px #f4f1d655}
+.hint{position:absolute;left:16px;bottom:12px;color:var(--dim);font-size:14px;max-width:70%}
+.d{position:absolute;display:flex;align-items:center;gap:8px;padding:8px 14px;border:0;border-radius:999px;background:var(--rose);color:#2a0a14;font:700 16px "Baloo 2",system-ui,sans-serif;cursor:pointer;animation:pop .2s ease-out;box-shadow:0 4px 0 #b3405c}
+.d:active{transform:translateY(3px);box-shadow:0 1px 0 #b3405c}
+.d .life{position:absolute;left:14px;right:14px;bottom:3px;height:3px;background:#2a0a1455;border-radius:2px;transform-origin:left}
+@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.task{display:flex;flex-direction:column;gap:8px}
+.steps{display:flex;gap:6px;justify-content:space-between;color:var(--dim);font-size:13px}
+.steps span{flex:1;text-align:center;padding:4px 0;border-radius:8px;background:var(--panel)}
+.steps .on{background:var(--lamp);color:#2b1a00;font-weight:700}
+.steps .ok{background:var(--mint);color:#06281f;font-weight:700}
+.go{border:0;border-radius:16px;padding:16px;background:var(--lamp);color:#2b1a00;font:800 22px "Baloo 2",system-ui,sans-serif;cursor:pointer;box-shadow:0 5px 0 #b97a1c;position:relative;overflow:hidden}
+.go:active{transform:translateY(4px);box-shadow:0 1px 0 #b97a1c}
+.go i{position:absolute;left:0;bottom:0;height:5px;background:#2b1a00;width:0}
+button:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
+.flash{animation:fl .4s}
+@keyframes fl{0%{background-color:#5a1830}100%{background-color:var(--panel)}}
+.ov{position:fixed;inset:0;background:#0a0c1ccc;display:flex;align-items:center;justify-content:center;padding:20px;z-index:5}
+.ov[hidden]{display:none}
+.card{background:var(--panel);border-radius:22px;padding:26px 22px;max-width:380px;width:100%;text-align:center}
+.card h1{margin:0 0 8px;font-size:34px;line-height:1.1}
+.card p{margin:0 0 18px;color:var(--dim);font-size:17px;line-height:1.4}
+.stars{font-size:38px;letter-spacing:4px;margin-bottom:6px;color:var(--lamp)}
+@media (prefers-reduced-motion:reduce){.d{animation:none}.flash{animation:none}.bar>i{transition:none}}
+</style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <div class="clock"><small>Target tidur 22:00</small><span id="clock">20:00</span></div>
+    <div class="score">Gangguan diusir<b id="saved">0</b></div>
+  </header>
+  <div class="bar" aria-hidden="true"><i id="prog"></i></div>
+  <div class="stage" id="stage">
+    <div class="moon"></div>
+    <div class="hint" id="hint">Ketuk gangguan sebelum hilang. Kalau dibiarkan, jam maju 6 menit.</div>
+  </div>
+  <div class="task">
+    <div class="steps" id="steps"></div>
+    <button class="go" id="go"><span id="goLabel"></span><i id="goBar"></i></button>
+  </div>
+</main>
+
+<div class="ov" id="ov">
+  <div class="card">
+    <div class="stars" id="stars" hidden></div>
+    <h1 id="ovT">Tidur Cepat</h1>
+    <p id="ovP">Sekarang jam 8 malam. Selesaikan rutinitas malam dan sudah di kasur sebelum jam 10, tanpa tergoda notifikasi.</p>
+    <button class="go" id="start" style="width:100%">Mulai</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var TASKS=[
+    {n:"Mandi",a:"Gosok badan",need:6,h:"🚿"},
+    {n:"Sikat gigi",a:"Sikat gigi",need:6,h:"🪥"},
+    {n:"Simpan HP",a:"Colok charger",need:4,h:"🔌"},
+    {n:"Tidur",a:"Matikan lampu",need:3,h:"🌙"}
+  ];
+  var DIST=[["📱","Notifikasi baru!"],["🎮","Satu ronde lagi?"],["📺","Episode berikutnya"],["🍜","Lapar nih…"],["💬","Grup chat ramai"],["🎵","Playlist seru"]];
+  var SPEED=2, END=120, PENALTY=6;
+  var $=function(i){return document.getElementById(i)};
+  var stage=$("stage"),go=$("go"),st;
+
+  function fmt(m){var t=Math.min(Math.floor(m),END+0);var h=20+Math.floor(t/60),mm=t%60;return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0")}
+
+  function drawSteps(){
+    $("steps").innerHTML=TASKS.map(function(t,i){
+      var c=i<st.task?"ok":i===st.task?"on":"";
+      return '<span class="'+c+'">'+t.h+" "+t.n+"</span>";
+    }).join("");
+    var cur=TASKS[st.task];
+    $("goLabel").textContent=cur.a+" ("+st.taps+"/"+cur.need+")";
+    $("goBar").style.width=(st.taps/cur.need*100)+"%";
+  }
+
+  function reset(){
+    st={t:0,task:0,taps:0,saved:0,list:[],next:1.2,run:true,last:performance.now()};
+    stage.querySelectorAll(".d").forEach(function(n){n.remove()});
+    $("saved").textContent="0";
+    drawSteps();
+  }
+
+  function spawn(){
+    if(st.list.length>=3)return;
+    var d=DIST[Math.floor(Math.random()*DIST.length)];
+    var el=document.createElement("button");
+    el.className="d";
+    el.innerHTML="<span>"+d[0]+"</span><span>"+d[1]+"</span><span class='life'></span>";
+    var w=stage.clientWidth,h=stage.clientHeight;
+    el.style.left=Math.round(8+Math.random()*Math.max(10,w-210))+"px";
+    el.style.top=Math.round(60+Math.random()*(h-130))+"px";
+    var o={el:el,life:3.2,max:3.2};
+    el.addEventListener("click",function(){
+      if(!st.run)return;
+      kill(o);st.saved++;$("saved").textContent=st.saved;
+    });
+    st.list.push(o);stage.appendChild(el);
+  }
+  function kill(o){o.el.remove();st.list=st.list.filter(function(x){return x!==o})}
+
+  go.addEventListener("click",function(){
+    if(!st||!st.run)return;
+    st.taps++;
+    if(st.taps>=TASKS[st.task].need){st.task++;st.taps=0;
+      if(st.task>=TASKS.length){drawSteps();return finish(true)}
+    }
+    drawSteps();
+  });
+
+  function tick(now){
+    if(!st.run)return;
+    var dt=Math.min(0.1,(now-st.last)/1000);st.last=now;
+    st.t+=dt*SPEED;
+    st.next-=dt;
+    if(st.next<=0){spawn();st.next=1.6+Math.random()*1.6}
+    st.list.slice().forEach(function(o){
+      o.life-=dt;
+      o.el.lastChild.style.transform="scaleX("+Math.max(0,o.life/o.max)+")";
+      if(o.life<=0){kill(o);st.t+=PENALTY;stage.classList.remove("flash");void stage.offsetWidth;stage.classList.add("flash")}
+    });
+    $("clock").textContent=fmt(st.t);
+    $("prog").style.width=Math.min(100,st.t/END*100)+"%";
+    if(st.t>=END)return finish(false);
+    requestAnimationFrame(tick);
+  }
+
+  function finish(win){
+    st.run=false;
+    var ov=$("ov"),stars=$("stars");
+    if(win){
+      var left=END-st.t,n=left>30?3:left>12?2:1;
+      stars.hidden=false;stars.textContent="★".repeat(n)+"☆".repeat(3-n);
+      $("ovT").textContent="Selamat tidur!";
+      $("ovP").textContent="Kamu sudah di kasur jam "+fmt(st.t)+" dan mengusir "+st.saved+" gangguan. Besok bangun lebih segar.";
+    }else{
+      stars.hidden=true;
+      $("ovT").textContent="Sudah jam 22:00";
+      $("ovP").textContent="Kamu belum sempat tidur. Rutinitas yang belum selesai: "+TASKS.slice(st.task).map(function(t){return t.n.toLowerCase()}).join(", ")+".";
+    }
+    $("start").textContent="Main lagi";
+    ov.hidden=false;
+  }
+
+  $("start").addEventListener("click",function(){
+    $("ov").hidden=true;reset();
+    requestAnimationFrame(function(n){st.last=n;tick(n)});
+  });
+  document.addEventListener("visibilitychange",function(){if(st&&st.run)st.last=performance.now()});
+})();
+</script>
+</body>
+</html>
